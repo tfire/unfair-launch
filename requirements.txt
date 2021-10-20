@@ -31,6 +31,7 @@ requests==2.26.0
 rlp==2.0.1
 six==1.16.0
 toolz==0.11.1
+twitter==1.19.3
 typing-extensions==3.10.0.2
 urllib3==1.26.7
 varint==1.0.2
