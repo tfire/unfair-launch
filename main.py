@@ -18,10 +18,9 @@ import json
 import urllib
 import asyncio
 import time
-import twitter_v1_api_keys 
+from secrets import twitter_v1_api_keys, infura_api
 from twitter import * 
 from websockets import connect
-import infura_api
 
 w3 = Web3(Web3.HTTPProvider(infura_api.INFURA_HTTP))
 
