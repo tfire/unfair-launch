@@ -13,13 +13,17 @@
 
 
 from web3 import Web3
+from eth_abi import decode_single
 import json
+import urllib
 import asyncio
 import time
+import twitter_v1_api_keys 
+from twitter import * 
+from websockets import connect
+import infura_api
 
-
-INFURA_ENDPOINT = "https://mainnet.infura.io/v3/d2a360148a0140638d65675f3b922231"
-w3 = Web3(Web3.HTTPProvider(INFURA_ENDPOINT))
+w3 = Web3(Web3.HTTPProvider(infura_api.INFURA_HTTP))
 
 
 SUSHI_FACTORY_V2 = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac"
@@ -33,46 +37,128 @@ PAIR_BASE_CONTRACTS = [USDC_CONTRACT, USDT_CONTRACT, WETH_CONTRACT]
 
 ERC20_ABI = json.loads(open("abi_erc20.json").read())["result"]
 
-# erc20 = w3.eth.contract(address=TETHER_CONTRACT, abi=READ_SYMBOL_ABI)
+t = Twitter(auth=OAuth2(bearer_token=twitter_v1_api_keys.BEARER))
 
 
+def get_tweets(query):
+    tweets = []
+    next_max_id = None
+    query = query + " exclude:retweets"
 
-def get_number_of_tweets(query):
-    return 0
+    for _ in range(30):
+        try:
+            batch = t.search.tweets(q=query, count=100, max_id=next_max_id)
+        except urllib.error.HTTPError:
+            time.sleep(5)
+            batch = t.search.tweets(q=query, count=100, max_id=next_max_id)
+
+        batch_length = len(batch["statuses"])
+        print("Batch of length", batch_length)
+        if batch_length == 0:
+            break
+            
+        next_max_id = batch["statuses"][-1]["id"] - 1
+
+        for status in batch["statuses"]:
+            tweets.append(
+                {
+                    "id": status["id"],
+                    "text": status["text"],
+                    "favorites": status["favorite_count"],
+                    "retweets": status["retweet_count"],
+                    "created_at": status["created_at"],
+                    "username": status["user"]["screen_name"],
+                    "followers": status["user"]["followers_count"],
+                }
+            )
+
+    if len(tweets) == 0:
+        return [], {}
+
+    stats = {
+        "all_tweets": len(tweets),
+        "all_favorites": sum([s["favorites"] for s in tweets]),
+        "avg_favorites": sum([s["favorites"] for s in tweets]) / len(tweets),
+        "max_favorites": max([s["favorites"] for s in tweets]),
+        "all_retweets": sum([s["retweets"] for s in tweets]),
+        "avg_retweets": sum([s["retweets"] for s in tweets]) / len(tweets),
+        "max_retweets": max([s["retweets"] for s in tweets]),
+    }
+
+    return tweets, stats
+
+def get_ticker_at_erc20(address):
+    contract = w3.eth.contract(address=address, abi=ERC20_ABI)
+    ticker = contract.functions.symbol().call()
+    print("Ticker for newly initialized liquidity pool:", ticker)
+    return ticker
+
+def get_main_token_for_pair(token0, token1):
+    if token0 not in PAIR_BASE_CONTRACTS:
+        return token0
+    return token1
 
 def main():
     sushi_contract = w3.eth.contract(address=SUSHI_FACTORY_V2, abi=SUSHI_FACTORY_ABI)
-    pair_created_filter = sushi_contract.events.PairCreated.createFilter(fromBlock=13450360, toBlock='latest')
-    events = pair_created_filter.get_all_entries()
-    print("Example response content\n", events)
+    pair_created_filter = sushi_contract.events.PairCreated.createFilter(fromBlock="latest")
 
+    print("\n\n")
     while True:
         events = pair_created_filter.get_new_entries()
         print("events", events)
-        if events:
-            event = event[0]
+        for event in events:
+            token_address = get_main_token_for_pair(event["args"]["token0"], event["args"]["token1"])
+            ticker = get_ticker_at_erc20(token_address)
 
-            token_address = None
-            if event[0]["args"]["token0"] not in PAIR_BASE_CONTRACTS:
-                token_address = event[0]["args"]["token0"]
-            else:
-                token_address = event[0]["args"]["token1"]
-
-            contract = w3.eth.contract(address=token_address, abi=ERC20_ABI)
-            ticker = contract.functions.symbol().call()
-            
-            print("NEW TICKER IS", ticker)
-            print("Scoring Twitter for energetic-memetic sentiment rating")
-            
-            # The number of tweets mentioning this ticker in the last 7 days
-            num_tweets = get_number_of_tweets("$" + ticker)
-
-            
+            print("Scoring Twitter for energetic-memetic sentiment rating on cashtag $" + ticker)
+            # The tweets mentioning this cashtag ticker in the last 7 days
+            tweets, stats = get_tweets("$" + ticker)
+            print(stats)
 
         time.sleep(30)
 
+async def listen_to_events():
+    async with connect(infura_api.INFURA_WS) as ws:
+        await ws.send(json.dumps(
+            {
+                "id": 1, "method": "eth_subscribe", "params": ["logs", {
+                    "address": [SUSHI_FACTORY_V2],
+                    "topics": [w3.keccak(text="PairCreated(address,address,address,uint256)").hex()]
+                }]
+            }
+        ))
+        subscription_response = await ws.recv()
+        print(subscription_response)
+
+        while True:
+            try:
+                message = await asyncio.wait_for(ws.recv(), timeout=60)
+                print("message", message)
+                decoded = decode_single(
+                    "(address,address,address,uint256)",
+                    bytearray.fromhex(json.loads(message)["params"]["result"]["data"][2:])
+                )
+                print(list(decoded))
+            except Exception as exc:
+                print(exc)
+
+def example():
+    sushi_contract = w3.eth.contract(address=SUSHI_FACTORY_V2, abi=SUSHI_FACTORY_ABI)
+    pair_created_filter = sushi_contract.events.PairCreated.createFilter(fromBlock=13450360, toBlock=13450365)
+    events = pair_created_filter.get_all_entries()
+    print("Example response content:\n", events)
+    
+    event = events[0]
+    token_address = get_main_token_for_pair(event["args"]["token0"], event["args"]["token1"])
+    ticker = get_ticker_at_erc20(token_address)
+    tweets, stats = get_tweets("$" + ticker)
+    print(token_address)
+    print(ticker)
+    print(stats)
 
 if __name__ == '__main__':
-    main()
+    loop = asyncio.get_event_loop()
+    while True:
+        loop.run_until_complete(listen_to_events())
 
 
