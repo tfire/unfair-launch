@@ -27,7 +27,7 @@ w3 = Web3(Web3.HTTPProvider(infura_api.INFURA_HTTP))
 
 
 SUSHI_FACTORY_V2 = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac"
-SUSHI_FACTORY_ABI = json.loads(open("abi_sushi_v2.json").read())["result"]
+SUSHI_FACTORY_ABI = json.loads(open("abi/abi_sushi_v2.json").read())["result"]
 
 USDT_CONTRACT = Web3.toChecksumAddress("0x26d0ee7d0fad46b0deb495fa09e283151438c102")
 USDC_CONTRACT = Web3.toChecksumAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
@@ -35,7 +35,7 @@ WETH_CONTRACT = Web3.toChecksumAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756c
 
 PAIR_BASE_CONTRACTS = [USDC_CONTRACT, USDT_CONTRACT, WETH_CONTRACT]
 
-ERC20_ABI = json.loads(open("abi_erc20.json").read())["result"]
+ERC20_ABI = json.loads(open("abi/abi_erc20.json").read())["result"]
 
 t = Twitter(auth=OAuth2(bearer_token=twitter_v1_api_keys.BEARER))
 
