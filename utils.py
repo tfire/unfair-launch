@@ -82,6 +82,9 @@ def get_tweets(query):
         "max_retweets": max([s["retweets"] for s in tweets]),
     }
 
+    stats["max_rt_id"] = [s["id"] for s in tweets if s["retweets"] == stats["max_retweets"]][0]
+    stats["max_fav_id"] = [s["id"] for s in tweets if s["favorites"] == stats["max_favorites"]][0]
+
     return tweets, stats
 
 def get_ticker_at_erc20(address):
