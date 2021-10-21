@@ -68,7 +68,7 @@ class UnfairLaunchBot(bot.BotBase, discord.Client):
         token = utils.get_main_token_for_pair(decoded[0], decoded[1])
         ticker = utils.get_ticker_at_erc20(token)
         tweets, stats = utils.get_tweets("$" + ticker)
-        self.channel.send(format_liquidity_pool_created_alert(ticker, "USDC", stats))
+        await self.channel.send(format_liquidity_pool_created_alert(ticker, "USDC", stats))
         
 
 
