@@ -62,10 +62,11 @@ class UnfairLaunchBot(bot.BotBase, discord.Client):
                     traceback.print_exc() 
 
     async def handle(self, event):
+        event = json.loads(event)
         print(event)
-        decoded = utils.decode_PairCreated(event)
-        print(decoded)
-        token = utils.get_main_token_for_pair(decoded[0], decoded[1])
+        token0 = utils.w3.toChecksumAddress(event["result"]["topics"][1][26:])
+        token1 = utils.w3.toChecksumAddress(event["result"]["topics"][2][26:])
+        token = utils.get_main_token_for_pair(token0, token1)
         ticker = utils.get_ticker_at_erc20(token)
         tweets, stats = utils.get_tweets("$" + ticker)
         await self.channel.send(format_liquidity_pool_created_alert(ticker, "USDC", stats))
