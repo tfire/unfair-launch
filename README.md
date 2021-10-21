@@ -6,4 +6,4 @@ You see fair launches but always fumble them? You need Unfair Launch!
 
 ![Discord example](/img/example.png)
 
-<sub><sup>emoji automation not yet implemented </sup></sub>
+*emoji automation not yet implemented*
