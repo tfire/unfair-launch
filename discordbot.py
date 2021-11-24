@@ -58,8 +58,12 @@ class UnfairLaunchBot(bot.BotBase, discord.Client):
                 try:
                     event = await ws.recv()
                     await self.handle(event)
-                except Exception:
+                except websockets.exceptions.ConnectionClosedError:
                     traceback.print_exc() 
+                    ws = websockets.connect(infura_api.INFURA_WS)
+                except Exception:
+                    traceback.print_exc()
+                    return
 
     async def handle(self, event):
         event = json.loads(event)
