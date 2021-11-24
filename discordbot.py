@@ -68,8 +68,8 @@ class UnfairLaunchBot(bot.BotBase, discord.Client):
     async def handle(self, event):
         event = json.loads(event)
         print(event)
-        token0 = utils.w3.toChecksumAddress(event["result"]["topics"][1][26:])
-        token1 = utils.w3.toChecksumAddress(event["result"]["topics"][2][26:])
+        token0 = utils.w3.toChecksumAddress(event["params"]["result"]["topics"][1][26:])
+        token1 = utils.w3.toChecksumAddress(event["params"]["result"]["topics"][2][26:])
         token = utils.get_main_token_for_pair(token0, token1)
         ticker = utils.get_ticker_at_erc20(token)
         tweets, stats = utils.get_tweets("$" + ticker)
